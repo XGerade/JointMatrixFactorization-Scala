@@ -34,12 +34,7 @@ class ItemFeatureVectorUpdateReducer extends GroupReduceFunction[(Int, Int, Floa
     val lambda = Util.lambda
     val numFeatures = Util.numFeatures
     val numUsers = Util.numUsers
-    /*
-     * Set vector for put in the user rating of the item
-      * The userID starts from 1
-     * So the initialized cardinality would be set to numUsers + 1
-     */
-    val ratingVector: Vector = new RandomAccessSparseVector(numUsers + 1, numUsers + 1)
+    val ratingVector: Vector = new RandomAccessSparseVector(Integer.MAX_VALUE, numUsers + 1)
     /*
      * Set a Map for all users' feature vectors
      */
@@ -62,7 +57,8 @@ class ItemFeatureVectorUpdateReducer extends GroupReduceFunction[(Int, Int, Floa
      * Extract all user-feature-vectors whose userID rated for the item
      */
     val featureVectors = Lists.newArrayListWithCapacity[Vector](ratingVector.getNumNondefaultElements())
-    val it = ratingVector.nonZeroes().iterator()
+    val itemRatingVector : Vector = new SequentialAccessSparseVector(ratingVector)
+    val it = itemRatingVector.nonZeroes().iterator()
     while (it.hasNext) {
       val elem = it.next()
       if (userFeatureMatrix.containsKey(elem.index)) {
@@ -72,7 +68,7 @@ class ItemFeatureVectorUpdateReducer extends GroupReduceFunction[(Int, Int, Floa
     /*
      * Calculate the item-feature-vector using Alternative Least Square (ALS) method
      */
-    val itemFeatureVector : Vector = AlternatingLeastSquaresSolver.solve(featureVectors, ratingVector, lambda, numFeatures)
+    val itemFeatureVector : Vector = AlternatingLeastSquaresSolver.solve(featureVectors, itemRatingVector, lambda, numFeatures)
     val itemFeatureVectorWritable = new PactVector()
     itemFeatureVectorWritable.set(itemFeatureVector)
     val result = (itemID, itemFeatureVectorWritable)
